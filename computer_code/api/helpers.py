@@ -11,6 +11,367 @@ import cv2 as cv
 from KalmanFilter import KalmanFilter
 from pseyepy import Camera
 from Singleton import Singleton
+import time
+from aprilgrid import detector
+
+
+class MultiCameraCapture:
+    def __init__(self, camera_indices):
+        # Initialize a list of VideoCapture objects based on the provided indices
+        self.cameras = [cv.VideoCapture(index) for index in camera_indices]
+        
+        # Check if all cameras are opened successfully
+        if not all(cam.isOpened() for cam in self.cameras):
+            raise RuntimeError("Error: One or more cameras could not be opened.")
+    
+    def read(self):
+        frames = []
+        timestamps = []
+        
+        # Record the timestamp before capturing frames
+        start_time = time.time()
+        
+        for cam in self.cameras:
+            ret, frame = cam.read()
+            if not ret:
+                raise RuntimeError("Error: Failed to capture frame from one or more cameras.")
+            frames.append(frame)
+        
+        # Record the timestamp after capturing frames
+        end_time = time.time()
+        timestamps.append(start_time)
+        timestamps.append(end_time)
+        
+        return frames, timestamps
+    
+    def release(self):
+        # Release all camera resources
+        for cam in self.cameras:
+            cam.release()
+    
+    def __del__(self):
+        # Ensure cameras are released when the object is deleted
+        self.release()
+
+'''
+# Example usage
+if __name__ == "__main__":
+    # Indices for the cameras (adjust as necessary)
+    camera_indices = [0, 2, 4, 6]
+
+    # Create an instance of the MultiCameraCapture class
+    multi_camera = MultiCameraCapture(camera_indices)
+    
+    try:
+        while True:
+            frames, timestamps = multi_camera.read()
+            
+            # Display the frames (for demonstration purposes)
+            for i, frame in enumerate(frames):
+                cv.imshow(f'Camera {i+1}', frame)
+            
+            # Print timestamps to check synchronization
+            print(f"Timestamps: {timestamps}")
+            
+            # Exit loop on 'q' key press
+            if cv.waitKey(1) & 0xFF == ord('q'):
+                break
+    finally:
+        # Release resources and close all windows
+        multi_camera.release()
+        cv.destroyAllWindows()
+'''
+
+#@Singleton
+class WMCamera:
+    def __init__(self, camera_indices, gain=0.0, exposure=0.0):
+        # Initialize a list of VideoCapture objects based on the provided indices
+        self.cameras = [cv.VideoCapture(index) for index in camera_indices]
+
+        # Check if all cameras are opened successfully
+        if not all(cam.isOpened() for cam in self.cameras):
+            raise RuntimeError("Error: One or more cameras could not be opened.")
+
+        # citanje json fajla sa matricama
+        dirname = os.path.dirname(__file__)
+        filename = os.path.join(dirname, "camera-params.json")
+        f = open(filename)
+        self.camera_params = json.load(f)
+
+        def set_settings(cam):
+            cam.set(cv.CAP_PROP_FRAME_WIDTH, 640)
+            cam.set(cv.CAP_PROP_FRAME_HEIGHT, 400)
+            cam.set(cv.CAP_PROP_FPS, 120)
+
+        map(lambda cam: set_settings(cam), self.cameras)
+
+        self.gain = gain
+        self.exposure = exposure
+    
+    def read(self):
+        # Record the timestamp before capturing frames
+        start_time = time.time()
+        frames, timestamps = [], []
+        
+        idxx = 0
+        for cam in self.cameras:
+            ret, frame = cam.read()
+            if not ret:
+                raise RuntimeError(f"Error: {idxx}Failed to capture frame from one or more cameras.")
+            frames.append(frame)
+            idxx+=1
+
+        
+        # Record the timestamp after capturing frames
+        end_time = time.time()
+        timestamps.append(start_time)
+        timestamps.append(end_time)
+        
+        return frames, timestamps
+    
+    def release(self):
+        # Release all camera resources
+        for cam in self.cameras:
+            cam.release()
+    
+    def __del__(self):
+        # Ensure cameras are released when the object is deleted
+        self.release()
+
+    def get_camera_params(self, camera_num):
+        return {
+            "intrinsic_matrix": np.array(self.camera_params[camera_num]["intrinsic_matrix"]),
+            "distortion_coef": np.array(self.camera_params[camera_num]["distortion_coef"]),
+            "rotation": self.camera_params[camera_num]["rotation"]
+        }
+    
+    def set_camera_params(self, camera_num, intrinsic_matrix=None, distortion_coef=None):
+        if intrinsic_matrix is not None:
+            self.camera_params[camera_num]["intrinsic_matrix"] = intrinsic_matrix
+        
+        if distortion_coef is not None:
+            self.camera_params[camera_num]["distortion_coef"] = distortion_coef
+
+
+# Example usage
+'''if __name__ == "__main__":
+    # Indices for the cameras (adjust as necessary)
+    camera_indices = [0]
+
+    # Create an instance of the MultiCameraCapture class
+    multi_camera = WMCamera(camera_indices)
+
+    detected = False
+    edges = []
+    
+    try:
+        while True:
+            frames, timestamps = multi_camera.read()
+            
+            
+            # Display the frames (for demonstration purposes)
+            for i, frame in enumerate(frames):
+                cv.imshow(f'Camera {i+1}', frame)
+            
+            # Print timestamps to check synchronization
+            print(f"Timestamps: {timestamps}")
+            
+            # Exit loop on 'q' key press
+            if cv.waitKey(1) & 0xFF == ord('q'):
+                break
+    finally:
+        # Release resources and close all windows
+        multi_camera.release()
+        cv.destroyAllWindows()
+'''
+
+@Singleton
+class Cameras2:
+    def __init__(self):
+        dirname = os.path.dirname(__file__)
+        filename = os.path.join(dirname, "camera-params.json")
+        f = open(filename)
+        self.camera_params = json.load(f)
+
+        #self.cameras = Camera(fps=90, resolution=Camera.RES_SMALL, gain=10, exposure=100)
+        self.cameras = WMCamera([0, 2, 4, 6], gain=10, exposure=100)
+
+        self.num_cameras = 4
+        print(self.num_cameras)
+
+        self.is_capturing_points = False
+
+        self.is_triangulating_points = False
+        self.camera_poses = None
+
+        self.is_locating_objects = False
+
+        self.to_world_coords_matrix = None
+
+        self.drone_armed = []
+
+        self.num_objects = None
+
+        self.kalman_filter = None
+
+        self.socketio = None
+        self.ser = None
+
+        self.serialLock = None
+
+        global cameras_init
+        cameras_init = True
+
+    def set_socketio(self, socketio):
+        self.socketio = socketio
+    
+    def set_ser(self, ser):
+        self.ser = ser
+
+    def set_serialLock(self, serialLock):
+        self.serialLock = serialLock
+
+    def set_num_objects(self, num_objects):
+        self.num_objects = num_objects
+        self.drone_armed = [False for i in range(0, self.num_objects)]
+    
+    def edit_settings(self, exposure, gain):
+        self.cameras.exposure = [exposure] * self.num_cameras
+        self.cameras.gain = [gain] * self.num_cameras
+
+    def _camera_read(self):
+        frames, _ = self.cameras.read()
+
+        for i in range(0, self.num_cameras):
+            frames[i] = np.rot90(frames[i], k=self.camera_params[i]["rotation"])
+            frames[i] = make_square(frames[i])
+            frames[i] = cv.undistort(frames[i], self.get_camera_params(i)["intrinsic_matrix"], self.get_camera_params(i)["distortion_coef"])
+            frames[i] = cv.GaussianBlur(frames[i],(9,9),0)
+            kernel = np.array([[-2,-1,-1,-1,-2],
+                               [-1,1,3,1,-1],
+                               [-1,3,4,3,-1],
+                               [-1,1,3,1,-1],
+                               [-2,-1,-1,-1,-2]])
+            frames[i] = cv.filter2D(frames[i], -1, kernel)
+            frames[i] = cv.cvtColor(frames[i], cv.COLOR_RGB2BGR)
+
+        if (self.is_capturing_points):
+            image_points = []
+            for i in range(0, self.num_cameras):
+                frames[i], single_camera_image_points = self._find_dot(frames[i])
+                image_points.append(single_camera_image_points)
+            
+            if (any(np.all(point[0] != [None,None]) for point in image_points)):
+                if self.is_capturing_points and not self.is_triangulating_points:
+                    self.socketio.emit("image-points", [x[0] for x in image_points])
+                elif self.is_triangulating_points:
+                    errors, object_points, frames = find_point_correspondance_and_object_points(image_points, self.camera_poses, frames)
+
+                    # convert to world coordinates
+                    for i, object_point in enumerate(object_points):
+                        new_object_point = np.array([[-1,0,0],[0,-1,0],[0,0,1]]) @ object_point
+                        new_object_point = np.concatenate((new_object_point, [1]))
+                        new_object_point = np.array(self.to_world_coords_matrix) @ new_object_point
+                        new_object_point = new_object_point[:3] / new_object_point[3]
+                        new_object_point[1], new_object_point[2] = new_object_point[2], new_object_point[1]
+                        object_points[i] = new_object_point
+
+                    objects = []
+                    filtered_objects = []
+                    if self.is_locating_objects:
+                        objects = locate_objects(object_points, errors)
+                        filtered_objects = self.kalman_filter.predict_location(objects)
+                        
+                        if len(filtered_objects) != 0:
+                            for filtered_object in filtered_objects:
+                                if self.drone_armed[filtered_object['droneIndex']]:
+                                    filtered_object["heading"] = round(filtered_object["heading"], 4)
+
+                                    serial_data = { 
+                                        "pos": [round(x, 4) for x in filtered_object["pos"].tolist()] + [filtered_object["heading"]],
+                                        "vel": [round(x, 4) for x in filtered_object["vel"].tolist()]
+                                    }
+                                    with self.serialLock:
+                                        self.ser.write(f"{filtered_object['droneIndex']}{json.dumps(serial_data)}".encode('utf-8'))
+                                        time.sleep(0.001)
+                            
+                        for filtered_object in filtered_objects:
+                            filtered_object["vel"] = filtered_object["vel"].tolist()
+                            filtered_object["pos"] = filtered_object["pos"].tolist()
+                    
+                    self.socketio.emit("object-points", {
+                        "object_points": object_points.tolist(), 
+                        "errors": errors.tolist(), 
+                        "objects": [{k:(v.tolist() if isinstance(v, np.ndarray) else v) for (k,v) in object.items()} for object in objects], 
+                        "filtered_objects": filtered_objects
+                    })
+        
+        return frames
+
+    def get_frames(self):
+        frames = self._camera_read()
+        #frames = [add_white_border(frame, 5) for frame in frames]
+
+        return np.hstack(frames)
+
+    def _find_dot(self, img):
+        # img = cv.GaussianBlur(img,(5,5),0)
+        grey = cv.cvtColor(img, cv.COLOR_RGB2GRAY)
+        grey = cv.threshold(grey, 255*0.2, 255, cv.THRESH_BINARY)[1]
+        contours,_ = cv.findContours(grey, cv.RETR_TREE, cv.CHAIN_APPROX_SIMPLE)
+        img = cv.drawContours(img, contours, -1, (0,255,0), 1)
+
+        image_points = []
+        for contour in contours:
+            moments = cv.moments(contour)
+            if moments["m00"] != 0:
+                center_x = int(moments["m10"] / moments["m00"])
+                center_y = int(moments["m01"] / moments["m00"])
+                cv.putText(img, f'({center_x}, {center_y})', (center_x,center_y - 15), cv.FONT_HERSHEY_SIMPLEX, 0.3, (100,255,100), 1)
+                cv.circle(img, (center_x,center_y), 1, (100,255,100), -1)
+                image_points.append([center_x, center_y])
+
+        if len(image_points) == 0:
+            image_points = [[None, None]]
+
+        return img, image_points
+
+    def start_capturing_points(self):
+        self.is_capturing_points = True
+
+    def stop_capturing_points(self):
+        self.is_capturing_points = False
+
+    def start_trangulating_points(self, camera_poses):
+        self.is_capturing_points = True
+        self.is_triangulating_points = True
+        self.camera_poses = camera_poses
+        self.kalman_filter = KalmanFilter(self.num_objects)
+
+    def stop_trangulating_points(self):
+        self.is_capturing_points = False
+        self.is_triangulating_points = False
+        self.camera_poses = None
+
+    def start_locating_objects(self):
+        self.is_locating_objects = True
+
+    def stop_locating_objects(self):
+        self.is_locating_objects = False
+    
+    def get_camera_params(self, camera_num):
+        return {
+            "intrinsic_matrix": np.array(self.camera_params[camera_num]["intrinsic_matrix"]),
+            "distortion_coef": np.array(self.camera_params[camera_num]["distortion_coef"]),
+            "rotation": self.camera_params[camera_num]["rotation"]
+        }
+    
+    def set_camera_params(self, camera_num, intrinsic_matrix=None, distortion_coef=None):
+        if intrinsic_matrix is not None:
+            self.camera_params[camera_num]["intrinsic_matrix"] = intrinsic_matrix
+        
+        if distortion_coef is not None:
+            self.camera_params[camera_num]["distortion_coef"] = distortion_coef
 
 
 @Singleton
@@ -106,7 +467,7 @@ class Cameras:
                     filtered_objects = []
                     if self.is_locating_objects:
                         objects = locate_objects(object_points, errors)
-                        filtered_objects = self.kalman_filter.predict_location(objects)
+                        filtered_objects = self.kalman_filter.predict_location(Camera(fps=90, resolution=Camera.RES_SMALL, gain=10, exposure=100))
                         
                         if len(filtered_objects) != 0:
                             for filtered_object in filtered_objects:
@@ -337,7 +698,7 @@ def triangulate_points(image_points, camera_poses):
 
 
 def find_point_correspondance_and_object_points(image_points, camera_poses, frames):
-    cameras = Cameras.instance()
+    cameras = Cameras2.instance()
 
     for image_points_i in image_points:
         try:

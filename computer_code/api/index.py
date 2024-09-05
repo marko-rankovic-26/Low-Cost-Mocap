@@ -1,4 +1,4 @@
-from helpers import camera_pose_to_serializable, calculate_reprojection_errors, bundle_adjustment, Cameras, triangulate_points
+from helpers import camera_pose_to_serializable, calculate_reprojection_errors, bundle_adjustment, Cameras2, triangulate_points
 from KalmanFilter import KalmanFilter
 
 from flask import Flask, Response, request
@@ -18,7 +18,7 @@ import json
 
 serialLock = threading.Lock()
 
-ser = serial.Serial("/dev/cu.usbserial-02X2K2GE", 1000000, write_timeout=1, )
+# ser = serial.Serial("/dev/cu.usbserial-02X2K2GE", 1000000, write_timeout=1, )
 
 app = Flask(__name__)
 CORS(app, supports_credentials=True)
@@ -30,10 +30,10 @@ num_objects = 2
 
 @app.route("/api/camera-stream")
 def camera_stream():
-    cameras = Cameras.instance()
+    cameras = Cameras2.instance()
     cameras.set_socketio(socketio)
-    cameras.set_ser(ser)
-    cameras.set_serialLock(serialLock)
+    # cameras.set_ser(ser)
+    # cameras.set_serialLock(serialLock)
     cameras.set_num_objects(num_objects)
     
     def gen(cameras):
@@ -117,7 +117,7 @@ def arm_drone(data):
     if not cameras_init:
         return
     
-    Cameras.instance().drone_armed = data["droneArmed"]
+    Cameras2.instance().drone_armed = data["droneArmed"]
     for droneIndex in range(0, num_objects):
         serial_data = {
             "armed": data["droneArmed"][droneIndex],
@@ -157,7 +157,7 @@ def arm_drone(data):
 
 @socketio.on("acquire-floor")
 def acquire_floor(data):
-    cameras = Cameras.instance()
+    cameras = Cameras2.instance()
     object_points = data["objectPoints"]
     object_points = np.array([item for sublist in object_points for item in sublist])
 
@@ -196,7 +196,7 @@ def acquire_floor(data):
 
 @socketio.on("set-origin")
 def set_origin(data):
-    cameras = Cameras.instance()
+    cameras = Cameras2.instance()
     object_point = np.array(data["objectPoint"])
     to_world_coords_matrix = np.array(data["toWorldCoordsMatrix"])
     transform_matrix = np.eye(4)
@@ -211,14 +211,14 @@ def set_origin(data):
 
 @socketio.on("update-camera-settings")
 def change_camera_settings(data):
-    cameras = Cameras.instance()
+    cameras = Cameras2.instance()
     
     cameras.edit_settings(data["exposure"], data["gain"])
 
 @socketio.on("capture-points")
 def capture_points(data):
     start_or_stop = data["startOrStop"]
-    cameras = Cameras.instance()
+    cameras = Cameras2.instance()
 
     if (start_or_stop == "start"):
         cameras.start_capturing_points()
@@ -228,7 +228,7 @@ def capture_points(data):
 
 @socketio.on("calculate-camera-pose")
 def calculate_camera_pose(data):
-    cameras = Cameras.instance()
+    cameras = Cameras2.instance()
     image_points = np.array(data["cameraPoints"])
     image_points_t = image_points.transpose((1, 0, 2))
 
@@ -278,7 +278,7 @@ def calculate_camera_pose(data):
 
 @socketio.on("locate-objects")
 def start_or_stop_locating_objects(data):
-    cameras = Cameras.instance()
+    cameras = Cameras2.instance()
     start_or_stop = data["startOrStop"]
 
     if (start_or_stop == "start"):
@@ -311,7 +311,7 @@ def determine_scale(data):
 
 @socketio.on("triangulate-points")
 def live_mocap(data):
-    cameras = Cameras.instance()
+    cameras = Cameras2.instance()
     start_or_stop = data["startOrStop"]
     camera_poses = data["cameraPoses"]
     cameras.to_world_coords_matrix = data["toWorldCoordsMatrix"]
