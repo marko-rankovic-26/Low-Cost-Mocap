@@ -123,7 +123,8 @@ def arm_drone(data):
             "armed": data["droneArmed"][droneIndex],
         }
         with serialLock:
-            ser.write(f"{str(droneIndex)}{json.dumps(serial_data)}".encode('utf-8'))
+            # ser.write(f"{str(droneIndex)}{json.dumps(serial_data)}".encode('utf-8'))
+            pass
         
         time.sleep(0.01)
 
@@ -133,7 +134,7 @@ def arm_drone(data):
         "pid": [float(x) for x in data["dronePID"]],
     }
     with serialLock:
-        ser.write(f"{str(data['droneIndex'])}{json.dumps(serial_data)}".encode('utf-8'))
+        # ser.write(f"{str(data['droneIndex'])}{json.dumps(serial_data)}".encode('utf-8'))
         time.sleep(0.01)
 
 @socketio.on("set-drone-setpoint")
@@ -142,7 +143,7 @@ def arm_drone(data):
         "setpoint": [float(x) for x in data["droneSetpoint"]],
     }
     with serialLock:
-        ser.write(f"{str(data['droneIndex'])}{json.dumps(serial_data)}".encode('utf-8'))
+        # ser.write(f"{str(data['droneIndex'])}{json.dumps(serial_data)}".encode('utf-8'))
         time.sleep(0.01)
 
 @socketio.on("set-drone-trim")
@@ -151,7 +152,7 @@ def arm_drone(data):
         "trim": [int(x) for x in data["droneTrim"]],
     }
     with serialLock:
-        ser.write(f"{str(data['droneIndex'])}{json.dumps(serial_data)}".encode('utf-8'))
+        # ser.write(f"{str(data['droneIndex'])}{json.dumps(serial_data)}".encode('utf-8'))
         time.sleep(0.01)
 
 
@@ -285,7 +286,8 @@ def start_or_stop_locating_objects(data):
         cameras.start_locating_objects()
         return
     elif (start_or_stop == "stop"):
-        cameras.stop_locating_objects()
+        cameras.stop_locating_object
+        # ser.write(f"{str(data['droneIndex'])}{json.dumps(serial_data)}".encode('utf-8'))s()
 
 @socketio.on("determine-scale")
 def determine_scale(data):

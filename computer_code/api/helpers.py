@@ -101,7 +101,12 @@ class WMCamera:
         def set_settings(cam):
             cam.set(cv.CAP_PROP_FRAME_WIDTH, 640)
             cam.set(cv.CAP_PROP_FRAME_HEIGHT, 400)
+            
             cam.set(cv.CAP_PROP_FPS, 120)
+            cam.set(cv.CAP_PROP_GAIN, 100)
+            cam.set(cv.CAP_PROP_BRIGHTNESS, 50)
+            cam.set(cv.CAP_PROP_EXPOSURE, 50)
+
 
         map(lambda cam: set_settings(cam), self.cameras)
 
@@ -194,7 +199,7 @@ class Cameras2:
         self.camera_params = json.load(f)
 
         #self.cameras = Camera(fps=90, resolution=Camera.RES_SMALL, gain=10, exposure=100)
-        self.cameras = WMCamera([0, 2, 4, 6], gain=10, exposure=100)
+        self.cameras = WMCamera([0, 2, 4, 6], gain=20, exposure=100)
 
         self.num_cameras = 4
         print(self.num_cameras)
@@ -382,7 +387,8 @@ class Cameras:
         f = open(filename)
         self.camera_params = json.load(f)
 
-        self.cameras = Camera(fps=90, resolution=Camera.RES_SMALL, gain=10, exposure=100)
+        # self.cameras = Camera(fps=90, resolution=Camera.RES_SMALL, gain=10, exposure=100)
+        self.cameras = WMCamera([0, 2, 4, 6], gain=20, exposure=100)
         self.num_cameras = len(self.cameras.exposure)
         print(self.num_cameras)
 
@@ -479,7 +485,7 @@ class Cameras:
                                         "vel": [round(x, 4) for x in filtered_object["vel"].tolist()]
                                     }
                                     with self.serialLock:
-                                        self.ser.write(f"{filtered_object['droneIndex']}{json.dumps(serial_data)}".encode('utf-8'))
+                                        # self.ser.write(f"{filtered_object['droneIndex']}{json.dumps(serial_data)}".encode('utf-8'))
                                         time.sleep(0.001)
                             
                         for filtered_object in filtered_objects:
@@ -573,7 +579,7 @@ def calculate_reprojection_errors(image_points, object_points, camera_poses):
 
 
 def calculate_reprojection_error(image_points, object_point, camera_poses):
-    cameras = Cameras.instance()
+    cameras = Cameras2.instance()
 
     image_points = np.array(image_points)
     none_indicies = np.where(np.all(image_points == None, axis=1))[0]
@@ -603,7 +609,7 @@ def calculate_reprojection_error(image_points, object_point, camera_poses):
 
 
 def bundle_adjustment(image_points, camera_poses, socketio):
-    cameras = Cameras.instance()
+    cameras = Cameras2.instance()
 
     def params_to_camera_poses(params):
         focal_distances = []
@@ -653,7 +659,7 @@ def bundle_adjustment(image_points, camera_poses, socketio):
 
 def triangulate_point(image_points, camera_poses):
     image_points = np.array(image_points)
-    cameras = Cameras.instance()
+    cameras = Cameras2.instance()
     none_indicies = np.where(np.all(image_points == None, axis=1))[0]
     image_points = np.delete(image_points, none_indicies, axis=0)
     camera_poses = np.delete(camera_poses, none_indicies, axis=0)
