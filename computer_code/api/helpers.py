@@ -9,7 +9,7 @@ import time
 import numpy as np
 import cv2 as cv
 from KalmanFilter import KalmanFilter
-from pseyepy import Camera
+# from pseyepy import Camera
 from Singleton import Singleton
 import time
 from aprilgrid import detector
@@ -102,10 +102,12 @@ class WMCamera:
             cam.set(cv.CAP_PROP_FRAME_WIDTH, 640)
             cam.set(cv.CAP_PROP_FRAME_HEIGHT, 400)
             
-            cam.set(cv.CAP_PROP_FPS, 120)
-            cam.set(cv.CAP_PROP_GAIN, 100)
-            cam.set(cv.CAP_PROP_BRIGHTNESS, 50)
-            cam.set(cv.CAP_PROP_EXPOSURE, 50)
+            # cam.set(cv.CAP_PROP_FPS, 120)
+            cam.set(cv.CAP_PROP_FPS, 30.0)
+            cam.set(cv.CAP_PROP_GAIN, -50)
+            cam.set(cv.CAP_PROP_BRIGHTNESS, 0)
+            # cam.set(cv.CAP_PROP_EXPOSURE, 50)
+            cam.set(cv.CAP_PROP_EXPOSURE, -12)
 
 
         map(lambda cam: set_settings(cam), self.cameras)
@@ -157,38 +159,43 @@ class WMCamera:
         if distortion_coef is not None:
             self.camera_params[camera_num]["distortion_coef"] = distortion_coef
 
-
+# from PIL import Image
+from matplotlib.pyplot import imshow, show    
 # Example usage
-'''if __name__ == "__main__":
-    # Indices for the cameras (adjust as necessary)
-    camera_indices = [0]
+# if __name__ == "__main__":
+#     # Indices for the cameras (adjust as necessary)
+#     camera_indices = [2]
 
-    # Create an instance of the MultiCameraCapture class
-    multi_camera = WMCamera(camera_indices)
+#     # Create an instance of the MultiCameraCapture class
+#     multi_camera = WMCamera(camera_indices)
 
-    detected = False
-    edges = []
+#     detected = False
+#     edges = []
     
-    try:
-        while True:
-            frames, timestamps = multi_camera.read()
+#     try:
+#         while True:
+#             frames, timestamps = multi_camera.read()
             
             
-            # Display the frames (for demonstration purposes)
-            for i, frame in enumerate(frames):
-                cv.imshow(f'Camera {i+1}', frame)
+#             # Display the frames (for demonstration purposes)
+#             for i, frame in enumerate(frames):
+#                 # cv.imshow(f'Camera {i+1}', frame)
+#                 img = cv.cvtColor(frame, cv.COLOR_BGR2RGB)
+#                 imshow(img)
+#                 show()
+                
+
             
-            # Print timestamps to check synchronization
-            print(f"Timestamps: {timestamps}")
+#             # Print timestamps to check synchronization
+#             print(f"Timestamps: {timestamps}")
             
-            # Exit loop on 'q' key press
-            if cv.waitKey(1) & 0xFF == ord('q'):
-                break
-    finally:
-        # Release resources and close all windows
-        multi_camera.release()
-        cv.destroyAllWindows()
-'''
+#             # Exit loop on 'q' key press
+#             # if cv.waitKey(1) & 0xFF == ord('q'):
+#             #     break
+#     finally:
+#         # Release resources and close all windows
+#         multi_camera.release()
+#         cv.destroyAllWindows()
 
 @Singleton
 class Cameras2:
@@ -199,7 +206,7 @@ class Cameras2:
         self.camera_params = json.load(f)
 
         #self.cameras = Camera(fps=90, resolution=Camera.RES_SMALL, gain=10, exposure=100)
-        self.cameras = WMCamera([0, 2, 4, 6], gain=20, exposure=100)
+        self.cameras = WMCamera([0, 2, 6, 4], gain=20, exposure=100)
 
         self.num_cameras = 4
         print(self.num_cameras)
@@ -243,6 +250,11 @@ class Cameras2:
     def edit_settings(self, exposure, gain):
         self.cameras.exposure = [exposure] * self.num_cameras
         self.cameras.gain = [gain] * self.num_cameras
+
+        # for cam in self.cameras:
+        #     cam.set(cv.CAP_PROP_GAIN, [gain] * self.num_cameras)
+        #     cam.set(cv.CAP_PROP_EXPOSURE, [exposure] * self.num_cameras)
+        #     pass
 
     def _camera_read(self):
         frames, _ = self.cameras.read()

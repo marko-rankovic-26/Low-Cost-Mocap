@@ -192,7 +192,7 @@ def acquire_floor(data):
 
     cameras.to_world_coords_matrix = np.array(np.vstack((np.c_[R, [0,0,0]], [[0,0,0,1]])))
 
-    socketio.emit("to-world-coords-matrix", {"to_world_coords_matrix": cameras.to_world_coords_matrix.tolist()})
+    # socketio.emit("to-world-coords-matrix", {"to_world_coords_matrix": cameras.to_world_coords_matrix.tolist()})
 
 
 @socketio.on("set-origin")
@@ -208,7 +208,7 @@ def set_origin(data):
     to_world_coords_matrix = transform_matrix @ to_world_coords_matrix
     cameras.to_world_coords_matrix = to_world_coords_matrix
 
-    socketio.emit("to-world-coords-matrix", {"to_world_coords_matrix": cameras.to_world_coords_matrix.tolist()})
+    # socketio.emit("to-world-coords-matrix", {"to_world_coords_matrix": cameras.to_world_coords_matrix.tolist()})
 
 @socketio.on("update-camera-settings")
 def change_camera_settings(data):
@@ -275,7 +275,7 @@ def calculate_camera_pose(data):
     object_points = triangulate_points(image_points, camera_poses)
     error = np.mean(calculate_reprojection_errors(image_points, object_points, camera_poses))
 
-    socketio.emit("camera-pose", {"camera_poses": camera_pose_to_serializable(camera_poses)})
+    # socketio.emit("camera-pose", {"camera_poses": camera_pose_to_serializable(camera_poses)})
 
 @socketio.on("locate-objects")
 def start_or_stop_locating_objects(data):
@@ -286,7 +286,7 @@ def start_or_stop_locating_objects(data):
         cameras.start_locating_objects()
         return
     elif (start_or_stop == "stop"):
-        cameras.stop_locating_object
+        cameras.stop_locating_objects()
         # ser.write(f"{str(data['droneIndex'])}{json.dumps(serial_data)}".encode('utf-8'))s()
 
 @socketio.on("determine-scale")
@@ -308,7 +308,7 @@ def determine_scale(data):
     for i in range(0, len(camera_poses)):
         camera_poses[i]["t"] = (np.array(camera_poses[i]["t"]) * scale_factor).tolist()
 
-    socketio.emit("camera-pose", {"error": None, "camera_poses": camera_poses})
+    # socketio.emit("camera-pose", {"error": None, "camera_poses": camera_poses})
 
 
 @socketio.on("triangulate-points")
