@@ -11,7 +11,7 @@ import { Canvas, useFrame } from '@react-three/fiber'
 import { Stats, OrbitControls } from '@react-three/drei'
 import Points from './components/Points';
 import { socket } from './shared/styles/scripts/socket';
-import { matrix, mean, multiply, rotationMatrix } from 'mathjs';
+import { matrix, mean, multiply, number, rotationMatrix } from 'mathjs';
 import Objects from './components/Objects';
 import Chart from './components/chart';
 import TrajectoryPlanningSetpoints from './components/TrajectoryPlanningSetpoints';
@@ -23,8 +23,9 @@ const NUM_DRONES = 2
 export default function App() {
   const [cameraStreamRunning, setCameraStreamRunning] = useState(false);
 
-  const [exposure, setExposure] = useState(100);
-  const [gain, setGain] = useState(0);
+  const [exposure, setExposure] = useState(0);
+  // gain prebacen na -50, po default je bio na 0!
+  const [gain, setGain] = useState(-50);
 
   const [capturingPointsForPose, setCapturingPointsForPose] = useState(false);
   const [capturedPointsForPose, setCapturedPointsForPose] = useState("");
@@ -33,7 +34,8 @@ export default function App() {
   const [isLocatingObjects, setIsLocatingObjects] = useState(false);
 
   const objectPoints = useRef<Array<Array<Array<number>>>>([])
-  const filteredObjects = useRef<object[][]>([])
+  // const filteredObjects = useRef<object[][]>([])
+  const filteredObjects = useRef<{pos : boolean[]}[][]>([])
   const droneSetpointHistory = useRef<number[][]>([])
   const objectPointErrors = useRef<Array<Array<number>>>([])
   const objects = useRef<Array<Array<Object>>>([])
@@ -41,11 +43,92 @@ export default function App() {
 
   const [fps, setFps] = useState(0);
 
+  // { "R": [[1, 0, 0], 
+  //   [0, 1, 0], 
+  //   [0, 0, 1]], "t": [-1, 0, -1] }
+
+  // I kamera
+  // Y za 45
+  // [  [0.7071068,  0.0000000,  0.7071068],
+  // [0.0000000,  1.0000000,  0.0000000],
+  // [-0.7071068,  0.0000000,  0.7071068] ]
+
+  // X za 20
+  // [  [0.7071068,  0.0000000,  0.7071068],
+  //   [0.2418448,  0.9396926, -0.2418448],
+  //  [-0.6644630,  0.3420202,  0.6644630] ]
+
+  // Z za 20
+  // [  [0.6644630, -0.2418448,  0.7071068],
+  //   [0.3420202,  0.9396926,  0.0000000],
+  //  [-0.6644630,  0.2418448,  0.7071068] ]
+
+  // X ya -20
+  // [  [0.7071068, -0.0000000,  0.7071068],
+  //   [-0.2418448,  0.9396926,  0.2418448],
+  //   [-0.6644630, -0.3420202,  0.6644630] ]
+
+  // ZYX X za 20
+
+
+//   [  [0.6644630, -0.3420202,  0.6644630],
+  //   [0.2418448,  0.9396926,  0.2418448],
+  //  [-0.7071068,  0.0000000,  0.7071068], ]
+
+  // 13 45 13
+  // [ [ 0.6889837, -0.1590644,  0.7071068],
+  //   [0.3741732,  0.9136153, -0.1590644],
+  //  [-0.6207221,  0.3741732,  0.6889837] ]
+
+  //  [  [0.6889837,  0.1590644,  0.7071068],
+  //  [ -0.0641980,  0.9851787, -0.1590644],
+  //  [ -0.7219281,  0.0641980,  0.6889837] ]
+
+
+  // X za -20 Z ya 20
+  // [  [0.6644630, -0.2418448,  0.7071068],
+  //   [0.0941341,  0.9657380,  0.2418448],
+  //  [-0.7413688, -0.0941341,  0.6644630] ]
+
+  // X za 20 Z za -20
+  // [  [0.6644630,  0.2418448,  0.7071068],
+  //   [-0.0941341,  0.9657380, -0.2418448],
+  //   [-0.7413688,  0.0941341,  0.6644630] ]
+
+
+  // [  [0.7071068,  0.0000000,  0.7071068],
+  //   [0.7071068,  0.0000000, -0.7071068],
+  //  [-0.0000000,  1.0000000,  0.0000000] ]
+
+  // [  [0.7071068,  0.0000000,  0.7071068],
+  //   [0.0000000, -1.0000000, -0.0000000],
+  //   [0.7071068,  0.0000000, -0.7071068] ]
+
+  // [  [0.9396926,  0.0000000, -0.3420202],
+  //   [-0.1169778,  0.9396926, -0.3213938],
+  //    [0.3213938,  0.3420202,  0.8830222] ]
   //const [cameraPoses, setCameraPoses] = useState<Array<object>>([{ "R": [[1, 0, 0], [0, 1, 0], [0, 0, 1]], "t": [0, 0, 0] }, { "R": [[-0.0008290000610233772, -0.7947131755287576, 0.6069845808584402], [0.7624444396180684, 0.3922492478955913, 0.5146056781855716], [-0.6470531579819294, 0.46321862674804054, 0.6055994671226776]], "t": [-2.6049886186449047, -2.173986915510569, 0.7303458563542193] }, { "R": [[-0.9985541623963866, -0.028079891357569067, -0.045837806036037466], [-0.043210651917521686, -0.08793122558361385, 0.9951888962042462], [-0.03197537054848707, 0.995730696156702, 0.0865907408997996]], "t": [0.8953888630067902, -3.4302652822708373, 3.70967106300893] }, { "R": [[-0.4499864100408215, 0.6855400696798954, -0.5723172578577878], [-0.7145273934510732, 0.10804105689305427, 0.6912146801345055], [0.5356891214002657, 0.7199735709654319, 0.4412201517663212]], "t": [2.50141072072536, -2.313616767292231, 1.8529907514099284] }])
-  const [cameraPoses, setCameraPoses] = useState<Array<object>>([{ "R": [[1, 0, 0], [0, 1, 0], [0, 0, 1]], "t": [0, 0, 0] }, { "R": [[1, 0, 0], [0, 1, 0], [0, 0, 1]], "t": [0, 0, 2.0] },{ "R": [[1, 0, 0], [0, 1, 0], [0, 0, 0]], "t": [0, 0, 1.5] },{ "R": [[1, 0, 0], [0, 1, 0], [0, 0, 1]], "t": [0, 0, 1] }])
+  const [cameraPoses, setCameraPoses] = useState<Array<any>>([
+    { "R":    
+        [[0.7071, 0.2425, 0.6645],
+        [0, 0.9397, -0.3420],
+        [-0.7071, 0.3420, 0.6645]], "t": [-1, 0, -1] }, 
+    { "R": [[0.7071, -0.2425, -0.6645],
+      [0, 0.9397, -0.3420],
+      [0.7071, 0.3420, 0.6645]], "t": [1, 0, -1] },
+    { "R": [[-0.7071, 0.2425, 0.6645],
+      [0, 0.9397, -0.3420],
+      [-0.7071, -0.2425, -0.6645]], "t": [-1, 0, 1] },
+    { "R": [[-0.7071, -0.2425, -0.6645],
+      [0, 0.9397, -0.3420],
+      [0.7071, -0.3420, -0.6645]], "t": [1, 0, 1] }])
 
   // const [toWorldCoordsMatrix, setToWorldCoordsMatrix] = useState<number[][]>([[0.9941338485260931, 0.0986512964608827, -0.04433748889242502, 0.9938296704767513], [-0.0986512964608827, 0.659022672138982, -0.7456252673517598, 2.593331619023365], [0.04433748889242498, -0.7456252673517594, -0.6648888236128887, 2.9576262456228286], [0, 0, 0, 1]])
-  const [toWorldCoordsMatrix, setToWorldCoordsMatrix] = useState<number[][]>([[1,0, 0, 0], [0, 1,0, 0], [0, 0, 1,0], [0, 0, 0, 1]])
+  const [toWorldCoordsMatrix, setToWorldCoordsMatrix] = useState<number[][]>([
+    [1, 0, 0, 0], 
+    [0, 1, 0, 0.5], 
+    [0, 0, 1, 0], 
+    [0, 0, 0, 1]])
 
   const [currentDroneIndex, setCurrentDroneIndex] = useState(0)
   const [droneArmed, setDroneArmed] = useState(Array.apply(null, Array(NUM_DRONES)).map(() => (false)))
@@ -299,10 +382,15 @@ export default function App() {
 
   const wait = async (ms: number) => new Promise(r => setTimeout(r, ms))
 
-  const moveToPos = async (pos: number[], droneIndex: number) => {
+  const moveToPos = async (pos : any, droneIndex: number) => {
     console.log(filteredObjects.current[filteredObjects.current.length - 1][droneIndex])
+    // const waypoints = [
+    //   filteredObjects.current[filteredObjects.current.length - 1][droneIndex]["pos"].concat([true]),
+    //   pos.concat([true])
+    // ]
     const waypoints = [
       filteredObjects.current[filteredObjects.current.length - 1][droneIndex]["pos"].concat([true]),
+      // {...filteredObjects.current[filteredObjects.current.length - 1][droneIndex]}["pos"].concat([true]),
       pos.concat([true])
     ]
     const setpoints = await planTrajectory(
@@ -314,7 +402,7 @@ export default function App() {
     )
 
     for await (const [i, setpoint] of setpoints.entries()) {
-      setpoint.map(x => x.toFixed(3))
+      setpoint.map((x : GLfloat) => x.toFixed(3))
       socket.emit("set-drone-setpoint", { "droneSetpoint": setpoint, droneIndex })
       setDroneSetpointWithMotion(setpoint)
 
@@ -400,7 +488,10 @@ export default function App() {
                   </Form.Group>
                   <Form.Group className="mb-1">
                     <Form.Label>Gain: {gain}</Form.Label>
-                    <Form.Range value={gain} onChange={(event) => setGain(parseFloat(event.target.value))} />
+                    <Form.Range value={gain} onChange={(event) => setGain(parseFloat(event.target.value))} 
+                      min={-50}
+                      max={50}/>
+                      {/* dodati min i max value za gain */}
                   </Form.Group>
                 </Form>
               </Col>

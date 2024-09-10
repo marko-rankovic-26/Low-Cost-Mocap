@@ -158,6 +158,12 @@ class WMCamera:
         
         if distortion_coef is not None:
             self.camera_params[camera_num]["distortion_coef"] = distortion_coef
+    
+    def edit_settings(self, exposure, gain=-50):
+        for cam in self.cameras:
+            cam.set(cv.CAP_PROP_GAIN, gain)
+            cam.set(cv.CAP_PROP_EXPOSURE, exposure)
+            pass
 
 # from PIL import Image
 from matplotlib.pyplot import imshow, show    
@@ -248,13 +254,13 @@ class Cameras2:
         self.drone_armed = [False for i in range(0, self.num_objects)]
     
     def edit_settings(self, exposure, gain):
+        def normalizeExposure(exposure):
+            return np.round(exposure * 13 / 100.0) - 13
+
         self.cameras.exposure = [exposure] * self.num_cameras
         self.cameras.gain = [gain] * self.num_cameras
 
-        # for cam in self.cameras:
-        #     cam.set(cv.CAP_PROP_GAIN, [gain] * self.num_cameras)
-        #     cam.set(cv.CAP_PROP_EXPOSURE, [exposure] * self.num_cameras)
-        #     pass
+        self.cameras.edit_settings(exposure=normalizeExposure(exposure=exposure), gain=gain)
 
     def _camera_read(self):
         frames, _ = self.cameras.read()
