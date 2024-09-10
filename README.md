@@ -41,3 +41,24 @@ My blog post has some more information about the drones & camera: [joshuabird.co
 This motion capture system is an "outside-in" system, with external cameras tracking objects within a fixed space. There are also "inside-out" systems which use cameras on the drones/robots to determine their locations, not requiring any external infrastructure. 
 
 My undergraduate dissertation presents such a system, which is capable of localizing multiple agents within a world in real time using purely visual data, with state-of-the-art performance. Check it out here: [https://github.com/jyjblrd/distributed_visual_SLAM](https://github.com/jyjblrd/distributed_visual_SLAM)
+
+
+
+Komanda za build sfm modula iz opencv_contrib repoa:
+cmake -D CMAKE_BUILD_TYPE=RELEASE \
+      -D CMAKE_INSTALL_PREFIX=/usr/local \
+      -D OPENCV_EXTRA_MODULES_PATH=~/opencv_contrib/modules \
+      -D BUILD_opencv_sfm=ON \
+      -D BUILD_opencv_python3=ON \
+      -D WITH_CUDA=ON \
+      -D BUILD_TESTS=OFF \
+      -D BUILD_PERF_TESTS=OFF \
+      -D BUILD_opencv_python2=OFF \
+      -D PYTHON_VERSION=3.10 \
+      -D PYTHON_DEFAULT_EXECUTABLE=/usr/bin/python3.10 \
+      -D PYTHON3_EXECUTABLE=/usr/bin/python3.10 \
+      -D PYTHON3_PACKAGES_PATH=/usr/lib/python3/dist-packages \
+      -D PYTHON3_INCLUDE_DIR=/usr/include/python3.10 \
+      -D OPENCV_PYTHON3_INSTALL_PATH=/usr/local/lib/python3.10/dist-packages \
+      -D PYTHON3_NUMPY_INCLUDE_DIRS=/usr/local/lib/python3.10/dist-packages/numpy/core/include \
+      ..
